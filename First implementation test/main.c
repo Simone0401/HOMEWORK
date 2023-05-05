@@ -26,8 +26,12 @@ Parola* push(Parola*, Parola*, Parola**);
 
 int main() {
     char buff[N] = "string.h e' l'header file della libreria standard del C che contiene definizioni di macro, costanti e dichiarazioni di funzioni e tipi usati non solo nella manipolazione delle stringhe ma anche nella manipolazione della memoria.\n\0";
-    int L = 15;
+    int L;
     int i = 0;
+
+    printf("Inserisci larghezza di una riga: ");
+    scanf("%d", &L);
+
     Parola *testa = NULL;
     Parola *coda = NULL;
 
@@ -37,17 +41,18 @@ int main() {
         int k;
         testa = componiLista(testa, &coda, &(buff[i]), L, &k);
         /* L'indice viene spostato indietro nel caso si sono lette lettere ma la parola non era finita */
-        i += L  - (L - k);
+        i += k;
         if(buff[i] == ' ') {
             i++;
         }
-        int caratteri = 0, n_words = 0;
+        int caratteri = 0, n_words = 0, effective_c = 0;
         bool printable = false;
         while (!printable) {
             Parola* nodo = pop(&testa);
             /* Se ancora non raggiungo L caratteri stampabili accodo la parola nella lista delle parole della riga */
             if (nodo != NULL && caratteri + nodo->size < L) {
                 caratteri += nodo->size + 1;            // TODO: controllare il comportamento qui. Potrebbe accodare uno spazio alla fine dell'ultima parola della riga
+                effective_c += nodo->size;
                 testa_riga = push(nodo, testa_riga, &coda_riga);
                 n_words++;
             }
@@ -55,14 +60,25 @@ int main() {
             else if ( (nodo == NULL && caratteri == L) || (nodo != NULL && caratteri + nodo->size == L) ) {
                 if (nodo != NULL && caratteri + nodo->size == L) {
                     n_words++;
+                    effective_c += nodo->size;
                 }
                 /* Stampiamo tutte le parole con uno spazio tra esse */
+                int space_to_place = L - effective_c;
+                int space_each_world = space_to_place / (n_words-1);
                 while (n_words > 0) {
                     Parola *p = pop(&testa_riga);
+                    if (n_words == 1 && space_to_place == 1) {
+                        printf(" ");
+                        space_to_place--;
+                    }
                     printf("%s", p->parola);
                     if (n_words != 1) {
-                        printf(" ");
-                    } else {
+                        for (int j = 0; j < space_each_world; ++j) {
+                            printf(" ");
+                            space_to_place--;
+                        }
+                    }
+                    else {
                         printf("\n");
                     }
                     free(p);
@@ -72,25 +88,41 @@ int main() {
             }
             /* Se i caratteri sono maggiori rispetto alla lunghezza L della riga significa che dovrà esserci una giustificazione */
             else {
-                int space_to_place = L - caratteri;
-                int space_each_world = space_to_place / (n_words-1);
-                while(n_words > 1) {
+                caratteri--;
+                /* Reinserisco la parola all'interno della lista altrimenti la perderei */
+                testa = push(nodo, testa, &coda);
+                /* Potrei avere una sola parola nella lista perchè quella che stavo leggendo mi fa sforare la lunghezza L */
+                if (n_words == 1) {
                     Parola *p = pop(&testa_riga);
                     printf("%s ", p->parola);
-                    for(int i = 0; i < space_each_world; i++) {
+                    for (int j = 0; j < L-p->size; ++j) {
                         printf(" ");
                     }
-                    space_to_place -= space_each_world;
+                    printf("\n");
                     free(p);
                     n_words--;
                 }
-                Parola *p = pop(&testa_riga);
-                for (int j = 0; j < space_to_place; ++j) {
-                    printf(" ");
+                else {
+                    int space_to_place = L - caratteri;
+                    int space_each_world = space_to_place / (n_words-1);
+                    while(n_words > 1) {
+                        Parola *p = pop(&testa_riga);
+                        printf("%s ", p->parola);
+                        for(int i = 0; i < space_each_world; i++) {
+                            printf(" ");
+                        }
+                        space_to_place -= space_each_world;
+                        free(p);
+                        n_words--;
+                    }
+                    Parola *p = pop(&testa_riga);
+                    for (int j = 0; j < space_to_place; ++j) {
+                        printf(" ");
+                    }
+                    printf("%s\n", p->parola);
+                    free(p);
+                    n_words--;
                 }
-                printf("%s\n", p->parola);
-                free(p);
-                n_words--;
                 printable = true;
             }
         }
@@ -156,7 +188,7 @@ Parola* componiLista(Parola* testa, Parola** coda, char* buffer, int L, int* k) 
             (*coda)->next = p;
             *coda = p;
         }
-        *k = 15;
+        *k = i;
     }
     /* Se la parola non è ancora finita si setta il numero di caratteri letti che non formano una parola completa */
 
