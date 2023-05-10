@@ -42,10 +42,10 @@ void free_buff(void* buff, int size);
 bool isEscapeChar(char c);
 Parola* crea_nodo(char* buff);
 int count_words(char* buff);
-void full_Justyfy(Parola** parole, int n_words, int L, Riga *testa, Riga *coda, int *nRighe);
+void full_Justyfy(Parola** parole, int n_words, int L);
 bool check_word_length(char *parola, int L);
-void left_justify(Parola** parole, int i, int j, int numbersOfSpaces, Riga *testa, Riga *coda, int *nRighe);
-void middle_justify(Parola** parole, int i, int j, int numberOfSpaces, Riga *testa, Riga *coda, int *nRighe);
+void left_justify(Parola** parole, int i, int j, int numbersOfSpaces);
+void middle_justify(Parola** parole, int i, int j, int numberOfSpaces);
 
 int main() {
     char buff[N] = "string.h e' l'header file della libreria standard del C che contiene definizioni di macro, costanti e dichiarazioni di funzioni e tipi usati non solo nella manipolazione delle stringhe ma anche nella manipolazione della memoria.\n\0";
@@ -164,7 +164,7 @@ int count_words(char* buff) {
  * @param n_words numero di parole all'interno dell'array
  * @param L indica la lunghezza massima della riga
  */
-void full_Justyfy(Parola** parole, int n_words, int L, Riga *testa, Riga *coda, int *nRighe) {
+void full_Justyfy(Parola** parole, int n_words, int L) {
     // L'idea è quella di usare due indici che indicano la prima parola da inserire all'interno della riga e la parola da inserire nella riga successiva da inserire all'interno della riga
     int i = 0;
     while (i < n_words) {
@@ -214,7 +214,7 @@ bool check_word_length(char *parola, int L) {
  * @param j indice dell'ultima parola da stampare
  * @param numberOfSpaces numero di spazi totali da partizionare all'interno della riga
  */
-void left_justify(Parola** parole, int i, int j, int numbersOfSpaces, Riga *testa, Riga *coda, int *nRighe) {
+void left_justify(Parola** parole, int i, int j, int numbersOfSpaces) {
 
     if (j - i == 1) {
         printf("%s", parole[i]->parola);
@@ -241,7 +241,7 @@ void left_justify(Parola** parole, int i, int j, int numbersOfSpaces, Riga *test
  * @param j indice indicante la posizione nell'array della parola successiva all'ultima da stampare
  * @param numberOfSpaces numero di spazi totali da partizionare all'interno della riga
  */
-void middle_justify(Parola** parole, int i, int j, int numberOfSpaces, Riga *testa, Riga *coda, int *nRighe) {
+void middle_justify(Parola** parole, int i, int j, int numberOfSpaces) {
     int spaceNeeded = j - i - 1;                            // numero di spazi minimi necessari (uno tra ogni parola), rappresenta anche in quante parti bisogna dividere gli spazi totali
     int effectiveSpace = numberOfSpaces / spaceNeeded;      // quanti spazi vanno inseriti tra due parole
     int extraSpace = numberOfSpaces % spaceNeeded;          // potrebbero dover essere redistribuiti alcuni spazi perchè la quantità di spazi totali è un numero dispari
