@@ -248,7 +248,7 @@ void middle_justify(Parola** parole, int i, int j, int numberOfSpaces) {
 
     for (; i < j; ++i) {
         printf("%s", parole[i]->parola);
-        for (int k = 0; k < effectiveSpace; ++k) {
+        for (int k = 0; k < effectiveSpace && numberOfSpaces > 0; ++k, --numberOfSpaces) {
             printf(" ");
         }
         if (extraSpace > 0) {
