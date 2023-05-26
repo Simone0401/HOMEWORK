@@ -4,8 +4,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <unistd.h>
-#include <wchar.h>
-#define N 1000
+#define N 100
 
 /*
  * TODO: per semplicità assumiamo che il testo sia formattato in maniera corretta. Implementare funzione che elimina tutti gli eventuali doppi spazi
@@ -41,7 +40,7 @@ typedef struct {
 void build_array(Parola** parole, int n_word, char *buff);
 void free_buff(void* buff, int size);
 bool isEscapeChar(char c);
-Parola* crea_nodo(char* buff);
+Parola* crea_nodo(const char* buff);
 int count_words(char* buff);
 Riga* full_Justyfy(Parola** parole, int n_words, int L, Riga *testa, Riga **coda, int *nRighe);
 bool check_word_length(char *parola, int L);
@@ -53,10 +52,11 @@ void stampa_lista(Riga *testa);
 Riga** build_array_righe(Riga *testa, int nRighe);
 void format_page(Riga **righe, int nRighe, int colonne);
 FILE *create_file(char *name);
+int utf8strlen(const char *buff);
+char *read_from_file(FILE *fp);
 
 
 int main() {
-    char buff[N] = "string.h e' l'header file della libreria standard del C che contiene definizioni di macro, costanti e dichiarazioni di funzioni e tipi usati non solo nella manipolazione delle stringhe ma anche nella manipolazione della memoria.\n\0";
     Parola** parole = NULL;
     int n_parole;
     int L;
@@ -64,6 +64,14 @@ int main() {
     Riga* coda_righe = NULL;
     int nRighe = 0;
 
+    char *buff = NULL;
+    FILE *fp = fopen("../../input.txt", "r");
+    buff = read_from_file(fp);
+    fclose(fp);
+
+    FILE *input;
+    input = fopen("../../input.txt", "r");
+    printf("%s", buff);
     printf("Inserisci larghezza di una riga: ");
     scanf("%d", &L);
 
@@ -89,6 +97,7 @@ int main() {
  * @param buff il buffer dal quale leggere le parole
  */
 void build_array(Parola** parole, int n_words, char *buff) {
+    /* Buffer settato a N = 100 perchè non esiste nessuna parola che supera i 100 caratteri */
     char temp[N];
     free_buff(temp, N);
     bool is_word = false;
@@ -96,7 +105,7 @@ void build_array(Parola** parole, int n_words, char *buff) {
     for (int i = 0, j = 0; current_n_words < n_words;) {
         if (!isEscapeChar(buff[i])) {
             if (!is_word) {
-                is_word = 1;
+                is_word = true;
             }
             temp[j] = buff[i];
             j++;
@@ -139,15 +148,15 @@ bool isEscapeChar(char c) {
  * @param buff
  * @return
  */
-Parola* crea_nodo(char* buff) {
+Parola* crea_nodo(const char* buff) {
     Parola* nodo = NULL;
     nodo = (Parola *) malloc(sizeof(Parola));
 
-    int len_word = strlen(buff);
-    char* parola = (char*) malloc(len_word);
+    unsigned int dumb_len_word = strlen(buff);
+    char* parola = (char*) malloc(dumb_len_word);
     strcpy(parola, buff);
     nodo->parola = parola;
-    nodo->size = len_word;
+    nodo->size = utf8strlen(buff);
 
     return nodo;
 }
@@ -167,6 +176,7 @@ int count_words(char* buff) {
             }
         } else if (isEscapeChar(buff[i]) && is_word) {
             n_words++;
+            is_word = false;
         }
     }
     return n_words;
@@ -214,7 +224,7 @@ Riga* full_Justyfy(Parola** parole, int n_words, int L, Riga *testa, Riga **coda
  * @return true se la parola può essere inserita, altrimenti uccide il processo
  */
 bool check_word_length(char *parola, int L) {
-    if (strlen(parola) > L) {
+    if (utf8strlen(parola) > L) {
         printf("%s è una parola inammissibile: è più lunga di %d caratteri", parola, L);
         fflush(stdout);     // forzo la scrittura prima di uccidere il processo
         kill(getpid(), SIGKILL);
@@ -402,11 +412,18 @@ void format_page(Riga **righe, int nRighe, int colonne) {
     }
 
     FILE *file = create_file("prova.txt\0");
+    if (file == NULL) {
+        printf("ERRORE APERUTRA FILE!");
+        fflush(stdout);
+        kill(getpid(), SIGKILL);
+    }
 
     for (int i = 0; i < n_righe_colonna; ++i) {
         for (int j = 0; j < colonne; ++j) {
-            printf("%s", righe[n_righe_colonna*j+i]->riga);
-            fprintf(file, "%s", righe[n_righe_colonna*j+i]->riga);
+            if (n_righe_colonna*j+i < nRighe) {
+                printf("%s", righe[n_righe_colonna*j+i]->riga);
+                fprintf(file, "%s", righe[n_righe_colonna*j+i]->riga);
+            }
             if (j != colonne-1) {
                 printf(" | ");
                 fprintf(file, " | ");
@@ -427,4 +444,67 @@ FILE *create_file(char *name) {
     FILE *fp;
     fp = fopen(name, "w");
     return fp;
+}
+
+/**
+ * Determina il numero di caratteri in una stringa codificata in UTF-8
+ * @param buff stringa della quale interessa determinare la lunghezza (di tipo const char * perchè si vuole impedire la modifica del contenuto della stringa)
+ * @return il numero di caratteri della stringa
+ */
+int utf8strlen(const char *buff) {
+    int len = 0;
+    while (*buff != '\0') {
+        /* In questo modo conto solo il primo byte di un qualsiasi carattere UTF-8
+         * Questo è possibile in quanto ogni byte successivo al primo deve iniziare con i bit '10'.
+         * Facendo l'AND logico bit a bit conto un carattere solo se il risultato tra il byte e la maschera 0xC0 (11000000)
+         * è diverso da '10000000'.
+         * NB: nessun carattere UTF-8 inizia con i bit più significati settati a '10'. */
+        if ((*buff & 0xC0) != 0x80) {
+            len++;
+        }
+        buff++;
+    }
+    return len;
+}
+
+/**
+ * Determina la dimensione di un file di testo e ritorna una stringa contenente tutto il testo del file
+ * @param fp il file dal quale bisogna leggere
+ * @return il buffer nel quale è contenuto tutto il testo del file
+ */
+char *read_from_file(FILE *fp) {
+    char *buff = NULL;
+    if (fp != NULL) {
+        /* Vado alla fine del file spostando il puntatore.
+         * La funzione richiede il file, con 0L (long int) indico che non mi voglio spostare, con SEEK_END indico che voglio andare alla fine del file. */
+        if (fseek(fp, 0L, SEEK_END) == 0) {
+            /* ftell() ritorna la posizione corrente del puntatore in termini di bytes dall'inizio del file.
+             * In questo modo posso determinare il numero di byte del file. */
+            long bufsize = ftell(fp);
+            if (bufsize == -1) {
+                printf("Errore nella lettura del file!");
+                fflush(stdout);
+                kill(getpid(), SIGKILL);
+            }
+
+            /* Alloco la quantità di spazio necessaria per contenere tutto il file. */
+            buff = malloc(sizeof(char) * (bufsize + 1));
+
+            /* Torno all'inizio del file (SEEK_SET). */
+            if (fseek(fp, 0L, SEEK_SET) != 0) {
+                printf("Errore nella lettura del file!");
+                fflush(stdout);
+                kill(getpid(), SIGKILL);
+            }
+
+            /* Leggo l'intero file e lo metto all'interno del buffer. */
+            size_t newLen = fread(buff, sizeof(char), bufsize, fp);
+            if ( ferror( fp ) != 0 ) {
+                fputs("Error reading file", stderr);
+            } else {
+                buff[newLen++] = '\0'; /* Just to be safe. */
+            }
+        }
+    }
+    return buff;
 }
