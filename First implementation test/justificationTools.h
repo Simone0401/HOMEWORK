@@ -420,7 +420,12 @@ void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int
                 fprintf(file, " ");
             }
         }
-        fprintf(file, "\n\n");
+        if (p == n_pagine - 1) {
+           fprintf(file, "\n");
+        }
+        else {
+           fprintf(file, "\n\n");
+        }
 
     }
 
