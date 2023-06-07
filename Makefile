@@ -1,4 +1,21 @@
-# make file -  serve per compilare in maniera facile i vari codice sorgente
+CC = gcc
+CFLAGS = -Wall -Wextra
+LDFLAGS = -lm
 
-all:
-	gcc 'First implementation test'/main.c 'First implementation test'/justificationTools.h -o 'First implementation test'/justify
+SRCDIR = src
+SRCS = $(SRCDIR)/main.c dist/argtable3.c
+OBJS = $(SRCS:.c=.o)
+EXEC = $(SRCDIR)/justify
+
+all: $(EXEC)
+
+$(EXEC): $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $(EXEC) $(LDFLAGS)
+	rm -f $(SRCDIR)/main.o
+	@echo "I WARNINGS VISUALIZZATI NON IMPATTANO SUL COMPORTAMENTO DEL PROGRAMMA!"
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) $(EXEC) $(SRCDIR)/main.o

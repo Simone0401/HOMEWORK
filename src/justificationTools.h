@@ -50,8 +50,8 @@ Riga* crea_riga(char *buff);
 Riga* push(Riga *element, Riga *testa, Riga **coda);
 void stampa_lista(Riga *testa);
 Riga** build_array_righe(Riga *testa, int nRighe);
-void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int L);
-FILE *create_file(char *name);
+void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int L, const char* outfile);
+FILE *create_file(const char *name);
 int utf8strlen(const char *buff);
 char *read_from_file(FILE *fp);
 void *free_list(void** testa, size_t s_testa, int lenght);
@@ -377,8 +377,9 @@ Riga** build_array_righe(Riga *testa, int nRighe) {
  * @param linee numero di righe per ogni colonna
  * @param dist numero di spazi bianchi tra una colonna e l'altra
  * @param L lunghezza di ogni linea della colonna
+ * @param outfile è il nome del file di output
  */
-void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int L) {
+void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int L, const char* outfile) {
 
     int n_pagine = nRighe / (linee * colonne);
     int char_totali_riga_pagina = (L*colonne + dist*(colonne-1));
@@ -388,9 +389,9 @@ void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int
         n_pagine++;
     }
 
-    FILE *file = create_file("prova.txt\0");
+    FILE *file = create_file(outfile);
     if (file == NULL) {
-        printf("ERRORE APERUTRA FILE!");
+        printf("ERRORE APERUTRA FILE!\n");
         fflush(stdout);
         kill(getpid(), SIGKILL);
     }
@@ -421,10 +422,10 @@ void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int
             }
         }
         if (p == n_pagine - 1) {
-           fprintf(file, "\n");
+            fprintf(file, "\n");
         }
         else {
-           fprintf(file, "\n\n");
+            fprintf(file, "\n\n");
         }
 
     }
@@ -437,7 +438,7 @@ void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int
  * @param name nome da dare al file
  * @return puntatore al file se riesce a crearlo, NULL altrimenti
  */
-FILE *create_file(char *name) {
+FILE *create_file(const char *name) {
     FILE *fp;
     fp = fopen(name, "w");
     return fp;
@@ -479,7 +480,7 @@ char *read_from_file(FILE *fp) {
              * In questo modo posso determinare il numero di byte del file. */
             long bufsize = ftell(fp);
             if (bufsize == -1) {
-                printf("Errore nella lettura del file!");
+                printf("Errore nella lettura del file!\n");
                 fflush(stdout);
                 kill(getpid(), SIGKILL);
             }
@@ -489,7 +490,7 @@ char *read_from_file(FILE *fp) {
 
             /* Torno all'inizio del file (SEEK_SET). */
             if (fseek(fp, 0L, SEEK_SET) != 0) {
-                printf("Errore nella lettura del file!");
+                printf("Errore nella lettura del file!\n");
                 fflush(stdout);
                 kill(getpid(), SIGKILL);
             }
