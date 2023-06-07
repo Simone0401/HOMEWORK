@@ -213,7 +213,7 @@ Riga* full_Justyfy(Parola** parole, int n_words, int L, Riga *testa, Riga **coda
  */
 bool check_word_length(char *parola, int L) {
     if (utf8strlen(parola) > L) {
-        printf("%s è una parola inammissibile: è più lunga di %d caratteri", parola, L);
+        printf("%s è una parola inammissibile: è più lunga di %d caratteri\n", parola, L);
         fflush(stdout);     // forzo la scrittura prima di uccidere il processo
         kill(getpid(), SIGKILL);
         return false;
@@ -301,14 +301,14 @@ Riga* middle_justify(Parola** parole, int i, int j, int numberOfSpaces, Riga *te
 Riga *crea_riga(char *buff) {
     Riga* riga = malloc(sizeof(Riga));
     if (riga == NULL) {
-        printf("Impossibile creare un nodo 'Riga'!");
+        printf("Impossibile creare un nodo 'Riga'!\n");
         fflush(stdout);
         kill(getpid(), SIGSEGV);
     }
     riga->size = strlen(buff) + 1;
     char *line = (char*) malloc(riga->size);
     if (line == NULL) {
-        printf("Impossibile riservare spazio per la stringa da stampare.");
+        printf("Impossibile riservare spazio per la stringa da stampare.\n");
         fflush(stdout);
         kill(getpid(), SIGSEGV);
     }
