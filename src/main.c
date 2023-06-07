@@ -1,15 +1,17 @@
 #include "justificationTools.h"
 #include "../dist/argtable3.h"
 
+bool validate_parameter(int L, int colonne, int righe, int dist);
+
 int main(int argc, char **argv) {
 
     struct arg_file *outfile  = arg_file0("o",	"outfile",	"<output>",	"output file (default è \"output.txt\")");
     struct arg_lit  *help     = arg_lit0("h",	"help",                    	"stampa questo help e esce");
     struct arg_lit  *version  = arg_lit0(NULL,	"version",                 	"stampa la versione del programma e esce");
-    struct arg_int  *lRiga    = arg_int0("r", 	"lungRiga", 	"<n>", 		"la lunghezza di una riga (default 26)");
-    struct arg_int  *nColonne = arg_int1("c", 	"colonne", 	"<n>", 		"il numero di colonne per pagina (obbligatorio)");
-    struct arg_int  *nLinee   = arg_int1("l", 	"numRighe", 	"<n>", 		"il numero di righe per colonna (obbligatorio)");
-    struct arg_int  *dist     = arg_int0("d", 	"distanza", 	"<n>", 		"la distanza tra una colonna e l'altra (default 3)");
+    struct arg_int  *lRiga    = arg_int0("r", 	"lungRiga", 	"<n>", 		"la lunghezza di una riga, deve essere un numero intero positivo (default 26)");
+    struct arg_int  *nColonne = arg_int1("c", 	"colonne", 	"<n>", 		"il numero di colonne per pagina, deve essere un numero intero positivo (obbligatorio)");
+    struct arg_int  *nLinee   = arg_int1("l", 	"numRighe", 	"<n>", 		"il numero di righe per colonna, deve essere un numero intero positivo (obbligatorio)");
+    struct arg_int  *dist     = arg_int0("d", 	"distanza", 	"<n>", 		"la distanza tra una colonna e l'altra, deve essere un numero intero positivo (default 3)");
     struct arg_lit  *openOut  = arg_lit0("p", 	"printout", 			"visualizza su STDOUT il file prodotto");
     struct arg_file *infile   = arg_file1(NULL, NULL, 		NULL, 		"input file (obbligatorio)");
     struct arg_end  *end      = arg_end(20);
@@ -49,7 +51,7 @@ int main(int argc, char **argv) {
     if (version->count > 0)
     {
         printf("'%s' è un programma che permette di giustificare testi in formato 'txt' in colonne con "
-               "giustificazione completa\n",progname);
+               "giustificazione completa\n", progname);
         printf("Giugno 2023, Argento Simone\n");
         exitcode=0;
         goto exit;
@@ -59,8 +61,8 @@ int main(int argc, char **argv) {
     if (nerrors > 0)
     {
         /* Stampa degli errori dettagliati */
-        arg_print_errors(stdout,end,progname);
-        printf("Prova '%s --help' per avere maggiori informazioni.\n",progname);
+        arg_print_errors(stdout, end, progname);
+        printf("Prova '%s --help' per avere maggiori informazioni.\n", progname);
         exitcode=1;
         goto exit;
     }
@@ -68,7 +70,7 @@ int main(int argc, char **argv) {
     /* caso speciale: non sono stati forniti parametri */
     if (argc==1)
     {
-        printf("Prova '%s --help' per maggiori informazioni.\n",progname);
+        printf("Prova '%s --help' per maggiori informazioni.\n", progname);
         exitcode=0;
         goto exit;
     }
@@ -107,6 +109,13 @@ int main(int argc, char **argv) {
         strcpy(ofile, outfile->filename[0]);
     }
 
+    if(!validate_parameter(L, colonne, linee, distanza)) {
+        printf("%s: sono stati forniti dei valori non ammissibili\n", progname);
+        printf("Prova '%s --help' per maggiori informazioni.\n", progname);
+        exitcode = 1;
+        goto exit;
+    }
+
     n_parole = count_words(buff);
     parole = (Parola**) malloc(sizeof(Parola)*n_parole);
 
@@ -129,4 +138,28 @@ int main(int argc, char **argv) {
     exit:
     arg_freetable(argtable,sizeof(argtable)/sizeof(argtable[0]));
     return exitcode;
+}
+
+/**
+ * Permette di verificare la correttezza dei vari parametri in termini numerici
+ * @param L lunghezza di ogni riga della colonna
+ * @param colonne numero di colonne
+ * @param righe numero di righe per colonna
+ * @param dist distanza tra due colonne
+ * @return true se i valori sono ok, false altrimenti
+ */
+bool validate_parameter(int L, int colonne, int righe, int dist){
+    if (L <= 0) {
+        return false;
+    }
+    if (colonne < 1) {
+        return false;
+    }
+    if (righe < 0) {
+        return false;
+    }
+    if (dist < 1) {
+        return false;
+    }
+    return true;
 }
