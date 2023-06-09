@@ -38,19 +38,22 @@ Un esempio di esecuzione è mostrato nelle immagini seguenti.
 
 **Manuale dei parametri**
 
-<img width="746" alt="help" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/4e3fadd8-4b26-452c-b2f9-02ac422188fc">
+<img width="748" alt="Help" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/08622064-c4fe-478c-afe8-d114df8c778c">
+
 
 **Esempio di comando con parametri e relativa esecuzione**
 
 
-<img width="314" alt="Screenshot 2023-06-09 alle 23 15 14" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/93ab3793-4dbe-4f28-a9ff-c58126ec79db"> <br>
+<img width="748" alt="Parametri" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/a9828551-fe8c-4864-9f76-a0501c2677cb">
 
-<img width="419" alt="Screenshot 2023-06-09 alle 23 15 48" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/815bbcfb-2b4a-4a7d-9a5c-70495f471778">
+
+<img width="748" alt="Output_file" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/e9ca7b25-3b29-4851-9d19-fcddfd6daf12">
+
   
 Nel caso in cui ci fossero parole del testo più lunghe rispetto alla lunghezza massima scelta per ogni riga verrà restituito il seguente errore:
   
-<img width="419" alt="Screenshot 2023-06-09 alle 23 37 13" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/2efae9d3-b86b-42e7-ac6d-d94bf936ae3b">
 
+<img width="641" alt="Errore" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/30b71a9e-b8f7-411d-b094-60a768e8be8a">
 
 
 ## Struttura del Progetto
