@@ -1,6 +1,5 @@
 #include "justificationTools.h"
 #include "../dist/argtable3.h"
-#include <sys/types.h>
 #include <sys/wait.h>
 
 bool validate_parameter(int L, int colonne, int righe, int dist);
@@ -19,7 +18,7 @@ int main(int argc, char **argv) {
     struct arg_int  *nLinee   = arg_int1("l", 	"numRighe", 	"<n>", 		"il numero di righe per colonna, deve essere un numero intero positivo (obbligatorio)");
     struct arg_int  *dist     = arg_int0("d", 	"distanza", 	"<n>", 		"la distanza tra una colonna e l'altra, deve essere un numero intero positivo (default 3)");
     struct arg_lit  *openOut  = arg_lit0("p", 	"printout", 			"visualizza su STDOUT il file prodotto");
-    struct arg_lit  *mulProc  = arg_lit0(NULL, "mP", "consente di avviare la versione multiprocesso del programma (di default viene avviata la versione monoprocesso)");
+    struct arg_lit  *mulProc  = arg_lit0(NULL, 	"mP", 				"consente di avviare la versione multiprocesso del programma (di default viene avviata la versione monoprocesso)");
     struct arg_file *infile   = arg_file1(NULL, NULL, 		NULL, 		"input file (obbligatorio)");
     struct arg_end  *end      = arg_end(20);
     void* argtable[] = {outfile, help, version, lRiga, nColonne, nLinee, dist, openOut, mulProc, infile, end};
@@ -89,14 +88,17 @@ int main(int argc, char **argv) {
     colonne = nColonne->ival[0];
     linee = nLinee->ival[0];
 
+    /* Se il parametro relativo alla lunghezza di ogni riga è stato passato lo setta */
     if (lRiga->count > 0) {
         L = lRiga->ival[0];
     }
 
+    /* Se il parametro relativo alla distanza tra colonne è stato passato lo setta */
     if (dist->count > 0) {
         distanza = dist->ival[0];
     }
 
+    /* Se il parametro relativo al percorso del file di output è stato passato lo setta */
     if (outfile->count > 0) {
         ofile = (char*) realloc(ofile, strlen(outfile->filename[0]) + 1);
         if (ofile == NULL) {
