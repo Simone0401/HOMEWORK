@@ -1,7 +1,12 @@
 #include "justificationTools.h"
 #include "../dist/argtable3.h"
+#include <sys/types.h>
+#include <sys/wait.h>
 
 bool validate_parameter(int L, int colonne, int righe, int dist);
+void processo_formattazione(int pipefd[], unsigned long buffsize, unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* outfile);
+void processo_scrittura(int pipefd[], const char* outfile);
+int multiprocess(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut);
 
 int main(int argc, char **argv) {
 
@@ -75,19 +80,9 @@ int main(int argc, char **argv) {
         goto exit;
     }
 
-    Parola** parole = NULL;
-    int n_parole;
-    int L = 26, colonne, linee, distanza = 3;
-    Riga* testa_righe = NULL;
-    Riga* coda_righe = NULL;
-    int nRighe = 0;
+    unsigned int L = 26, colonne, linee, distanza = 3;
     char *ofile = malloc(sizeof("../output_file/output.txt")+1);
     strcpy(ofile, "../output_file/output.txt\0");
-
-    char *buff = NULL;
-    FILE *input = fopen(infile->filename[0], "r");
-    buff = read_from_file(input);
-    fclose(input);
 
     colonne = nColonne->ival[0];
     linee = nLinee->ival[0];
@@ -101,7 +96,7 @@ int main(int argc, char **argv) {
     }
 
     if (outfile->count > 0) {
-        ofile = (char*) realloc(ofile, sizeof(outfile->filename[0]) + 1);
+        ofile = (char*) realloc(ofile, strlen(outfile->filename[0]) + 1);
         if (ofile == NULL) {
             goto exit;
         }
@@ -116,26 +111,9 @@ int main(int argc, char **argv) {
         goto exit;
     }
 
-    n_parole = count_words(buff);
-    parole = (Parola**) malloc(sizeof(Parola)*n_parole);
+    exitcode = multiprocess(L, colonne, linee, distanza, ofile, infile->filename[0], openOut->count);
 
-    build_array(parole, n_parole, buff, L);
-    testa_righe = full_Justyfy(parole, n_parole, L, testa_righe, &coda_righe, &nRighe);
-
-    Riga **righe = build_array_righe(testa_righe, nRighe);
-    format_page(righe, nRighe, colonne, linee, distanza, L, ofile);
-    free_list(righe, sizeof(Riga), nRighe);
-
-    if (openOut->count > 0) {
-        FILE *print = fopen(ofile, "r");
-        buff = read_from_file(print);
-        printf("%s", buff);
-        fclose(input);
-    } else {
-        printf("FILE CREATO CORRETTAMENTE!");
-    }
-
-    exit:
+exit:
     arg_freetable(argtable,sizeof(argtable)/sizeof(argtable[0]));
     return exitcode;
 }
@@ -162,4 +140,156 @@ bool validate_parameter(int L, int colonne, int righe, int dist){
         return false;
     }
     return true;
+}
+
+/**
+ * Si occupa del codice da far eseguire al processo di formattazione delle pagine
+ * @param pipefd il file descriptor della pipe
+ * @param buffsize dimensione del buffer che dovrà contenere il testo letto dal file
+ * @param L lunghezza di ogni riga della colonna
+ * @param colonne numero di colonne per pagina
+ * @param linee numero di righe per colonna
+ * @param distanza numero di spazi tra una coonna e l'altra
+ * @param outfile è il path del file di output
+ */
+void processo_formattazione(int pipefd[], unsigned long buffsize, unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char *outfile) {
+    char *buff = (char *) malloc(sizeof(char)*buffsize);
+    if (buff == NULL) {
+        printf("Errore nel processo di formattazione della pagina!\n");
+        return;
+    }
+
+    /* Leggo il contenuto del file passato dal processo padre */
+    read(pipefd[0], buff, buffsize);
+    close(pipefd[0]);
+
+    Parola** parole = NULL;
+    unsigned int n_parole;
+    Riga* testa_righe = NULL;
+    Riga* coda_righe = NULL;
+    unsigned int nRighe = 0;
+
+    n_parole = count_words(buff);
+    parole = (Parola**) malloc(sizeof(Parola)*n_parole);
+    build_array(parole, n_parole, buff, L);
+    testa_righe = full_Justyfy(parole, n_parole, L, testa_righe, &coda_righe, &nRighe);
+
+    Riga **righe = build_array_righe(testa_righe, nRighe);
+
+    int pipefd2[2];
+
+    if (pipe(pipefd2) == -1) {
+        printf("Errore nella comunicazione con il processo di scrittura su file\n");
+        goto exit_figlio;
+    }
+
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        printf("Errore nella creazione del processo di scrittura su file\n");
+        goto exit_figlio;
+    } else if (pid == 0) {
+        close(pipefd2[1]);
+        processo_scrittura(pipefd2, outfile);
+        exit(EXIT_SUCCESS);
+    } else {
+        close(pipefd2[0]);
+        format_page_multiprocess(righe, nRighe, colonne, linee, distanza, L, pipefd2, pid);
+        close(pipefd[1]);
+        wait(NULL);
+        free_list(righe, sizeof(Riga), nRighe);
+        exit(EXIT_SUCCESS);
+    }
+
+exit_figlio:
+    exit(EXIT_SUCCESS);
+}
+
+/**
+ * Si occupa del codice da far eseguire al processo che deve scrivere sul file output
+ * @param pipefd il file descriptor della pipe nella quale transitano le stringhe da stampare sul file
+ * @param outfile il path del file di output
+ */
+void processo_scrittura(int pipefd[], const char* outfile) {
+    unsigned int BUFFER_SIZE = 4096;
+    char buffer[BUFFER_SIZE];
+    free_buff(buffer, BUFFER_SIZE);
+    ssize_t bytesRead;
+
+    FILE *file = create_file(outfile);
+    if (file == NULL) {
+        printf("ERRORE APERUTRA FILE!\n");
+        fflush(stdout);
+        kill(getpid(), SIGKILL);
+    }
+    int outfilefd = fileno(file);
+
+    while ((bytesRead = read(pipefd[0], buffer, BUFFER_SIZE)) > 0) {
+        /* Stampa i dati letti dalla pipe sul file di output */
+        write(outfilefd, buffer, (int)bytesRead);
+    }
+
+exit_scrittura:
+    fclose(file);
+    close(pipefd[0]);
+}
+
+/**
+ * Permette di avviare la versione multiprocesso del programma
+ * @param L lunghezza di ogni riga
+ * @param colonne numero di colonne desiderate
+ * @param linee numero di righe per colonna
+ * @param distanza numero di spazi tra due colonne
+ * @param ofile nome del file di output
+ * @param infile nome del file di input
+ * @param openOut se settato a 1 indica che si vuole stampare il file direttamente su Shell
+ */
+int multiprocess(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut) {
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        printf("Errore nella creazione della pipe. Uscita in corso ...\n");
+        return 1;
+    }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        printf("Errore nella creazione del processo di formattazione\n");
+        return 1;
+    } else if (pid == 0) {
+        /* è il processo figlio, chiudo l'estremità di scrittura nella pipe del processo figlio */
+        close(pipefd[1]);
+        unsigned long buffsize;
+        read(pipefd[0], &buffsize, sizeof(buffsize));
+        processo_formattazione(pipefd, buffsize, L, colonne, linee, distanza, ofile);
+        exit(EXIT_SUCCESS);
+    } else {
+        /* Siamo nel processo padre, si deve occupare di leggere il contenuto del file in input. */
+        /* Chiudo l'estremità di lettura nella pipe del processo padre. */
+        close(pipefd[0]);
+
+        char *buff = NULL;
+        FILE *input = fopen(infile, "r");
+        buff = read_from_file(input);
+        fclose(input);
+
+        unsigned long buffsize = strlen(buff);
+        write(pipefd[1], &buffsize, sizeof(buffsize));
+        write(pipefd[1], buff, buffsize);
+        close(pipefd[1]);
+
+        wait(NULL);
+
+        free_buff(buff, sizeof(buff));
+        free(buff);
+
+        if (openOut > 0) {
+            FILE *print = fopen(ofile, "r");
+            buff = read_from_file(print);
+            printf("%s", buff);
+            fclose(print);
+        } else {
+            printf("FILE CREATO CORRETTAMENTE!\nVai nella cartella 'output_file' per vedere il risultato\n");
+        }
+    }
+    return 0;
 }
