@@ -55,6 +55,7 @@ FILE *create_file(const char *name);
 int utf8strlen(const char *buff);
 char *read_from_file(FILE *fp);
 void *free_list(void** testa, size_t s_testa, int lenght);
+void format_page_multiprocess(Riga **righe, int nRighe, int colonne, int linee, int dist, int L, int pipefd[], int childPID);
 
 /**
  * Inserisci all'interno di un array di puntatori a struct 'Parola' una quantità determinata di parole
@@ -431,6 +432,63 @@ void format_page(Riga **righe, int nRighe, int colonne, int linee, int dist, int
     }
 
     fclose(file);
+}
+
+/**
+ * Permette di formattare le righe all'interno di una pagina e di inviare tali righe alla PIPE di un determinato processo
+ * @param righe array di puntatori a struct di tipo 'Riga'
+ * @param nRighe lunghezza dell'array, rappresenta il numero di righe totali del documento da creare
+ * @param colonne numero di colonne per pagina nelle quali si vogliono disporre le linee
+ * @param linee numero di righe per ogni colonna
+ * @param dist numero di spazi bianchi tra una colonna e l'altra
+ * @param L lunghezza di ogni linea della colonna
+ * @param pipefd pipe relativa al processo con il quale bisogna comunica
+ * @param childPID pid del processo al quale inviare le stringhe formattate
+ */
+void format_page_multiprocess(Riga **righe, int nRighe, int colonne, int linee, int dist, int L, int pipefd[], int childPID) {
+
+    int n_pagine = nRighe / (linee * colonne);
+    int char_totali_riga_pagina = (L*colonne + dist*(colonne-1));
+    int half = char_totali_riga_pagina / 2;
+
+    if (nRighe % (linee * colonne) > 0) {
+        n_pagine++;
+    }
+
+    for (int p = 0; p < n_pagine; ++p) {
+        int base = p * linee * colonne;
+        for (int i = 0; i < linee; ++i) {
+            for (int j = 0; j < colonne; ++j) {
+                if (base+linee*j+i < nRighe) {
+                    write(pipefd[1], righe[base+linee*j+i]->riga, righe[base+linee*j+i]->size - 1);
+                }
+                if (j != colonne-1) {
+                    for (int k = 0; k < dist; ++k) {
+                        write(pipefd[1], " ", 1);
+                    }
+                }
+            }
+            write(pipefd[1], "\n", 1);
+        }
+
+        write(pipefd[1], "\n", 1);
+        for (int i = 0; i < char_totali_riga_pagina; ++i) {
+            if (i == half-1 || i == half || i == half+1) {
+                write(pipefd[1], "%", 1);
+            }
+            else {
+                write(pipefd[1], " ", 1);
+            }
+        }
+        if (p == n_pagine - 1) {
+            write(pipefd[1], "\n", 1);
+        }
+        else {
+            write(pipefd[1], "\n\n", 2);
+        }
+    }
+    /* Comunico al processo che leggerà dalla PIPE che può iniziare a leggere */
+    kill(childPID, SIGUSR2);
 }
 
 /**
