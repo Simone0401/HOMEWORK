@@ -283,8 +283,11 @@ int multiprocesso(unsigned int L, unsigned int colonne, unsigned int linee, unsi
         write(pipefd[1], buff, buffsize);
         close(pipefd[1]);
 
-        wait(NULL);
-
+        int status;
+        wait(&status);
+        if (WIFSIGNALED(status) && (WTERMSIG(status) == SIGKILL)) {
+            return 1;
+        }
         free_buff(buff, sizeof(buff));
         free(buff);
 
