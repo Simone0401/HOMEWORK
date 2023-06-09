@@ -13,7 +13,7 @@ Nel proseguio del documento verranno mostrate alcune immaggini esemplicative.
 Verranno elencati di seguito i requisiti per la compilazione e successiva esecuzione del programma:
 
 - Compilatore C: **gcc**. Il makefile utilizza questo compilatore, non è garantito il funzionamento con compilatori diversi.
-- Librerie di sistema: **stdio.h**, **string.h**, **stdlib.h**, **stdbool.h**, **signal.h**, **unistd.h**, **sys/types.h**, **sys/wait.h**.
+- Librerie di sistema: **stdio.h**, **string.h**, **stdlib.h**, **stdbool.h**, **signal.h**, **unistd.h**, **sys/wait.h**.
 - Libreria esterna per analisi dei parametri passati tramite Shell: **argtable3.h**. (_https://www.argtable.org/_).
 - Sistema operativo: 6.0.0-kali3-amd64 (il programma dovrebbe funzionare su qualsiasi distro Unix ma non si garantisce il corretto funzionamento).
 
