@@ -6,7 +6,7 @@
 bool validate_parameter(int L, int colonne, int righe, int dist);
 void processo_formattazione(int pipefd[], unsigned long buffsize, unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* outfile);
 void processo_scrittura(int pipefd[], const char* outfile);
-void signalHandler(int signal);
+int multiprocess(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut);
 
 int main(int argc, char **argv) {
 
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
     }
 
     if (outfile->count > 0) {
-        ofile = (char*) realloc(ofile, sizeof(outfile->filename[0]) + 1);
+        ofile = (char*) realloc(ofile, strlen(outfile->filename[0]) + 1);
         if (ofile == NULL) {
             goto exit;
         }
@@ -111,56 +111,7 @@ int main(int argc, char **argv) {
         goto exit;
     }
 
-    int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        printf("Errore nella creazione della pipe. Uscita in corso ...\n");
-        exitcode = 1;
-        goto exit;
-    }
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        printf("Errore nella creazione del processo di formattazione\n");
-        exitcode = 1;
-        goto exit;
-    } else if (pid == 0) {
-        /* è il processo figlio, chiudo l'estremità di scrittura nella pipe del processo figlio */
-        close(pipefd[1]);
-        unsigned long buffsize;
-        read(pipefd[0], &buffsize, sizeof(buffsize));
-        processo_formattazione(pipefd, buffsize, L, colonne, linee, distanza, ofile);
-        exit(EXIT_SUCCESS);
-    } else {
-        /* è il processo padre, chiudo l'estremità di lettura nella pipe del processo padre */
-        close(pipefd[0]);
-
-        char *buff = NULL;
-        FILE *input = fopen(infile->filename[0], "r");
-        buff = read_from_file(input);
-        fclose(input);
-        unsigned long buffsize = strlen(buff);
-        write(pipefd[1], &buffsize, sizeof(buffsize));
-        write(pipefd[1], buff, buffsize);
-        signal(SIGUSR1, signalHandler);
-        pause();
-        close(pipefd[1]);
-        wait(NULL);
-        write(STDOUT_FILENO, "HOFINITO", sizeof("HOFINITO"));
-        free_buff(buff, sizeof(buff));
-        free(buff);
-
-    }
-
-    // TODO: da sistemare questa porzione di codice allocando sufficiente spazio in memoria per contenere tutto il file
-    char *buff;
-    if (openOut->count > 0) {
-        FILE *print = fopen(ofile, "r");
-        buff = read_from_file(print);
-        printf("%s", buff);
-        fclose(print);
-    } else {
-        printf("FILE CREATO CORRETTAMENTE!");
-    }
+    exitcode = multiprocess(L, colonne, linee, distanza, ofile, infile->filename[0], openOut->count);
 
 exit:
     arg_freetable(argtable,sizeof(argtable)/sizeof(argtable[0]));
@@ -202,17 +153,15 @@ bool validate_parameter(int L, int colonne, int righe, int dist){
  * @param outfile è il path del file di output
  */
 void processo_formattazione(int pipefd[], unsigned long buffsize, unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char *outfile) {
-    int exitcode = 0;
     char *buff = (char *) malloc(sizeof(char)*buffsize);
     if (buff == NULL) {
         printf("Errore nel processo di formattazione della pagina!\n");
-        exitcode = 1;
+        return;
     }
 
     /* Leggo il contenuto del file passato dal processo padre */
     read(pipefd[0], buff, buffsize);
     close(pipefd[0]);
-    kill(getppid(), SIGUSR1);
 
     Parola** parole = NULL;
     unsigned int n_parole;
@@ -231,7 +180,6 @@ void processo_formattazione(int pipefd[], unsigned long buffsize, unsigned int L
 
     if (pipe(pipefd2) == -1) {
         printf("Errore nella comunicazione con il processo di scrittura su file\n");
-        exitcode = 1;
         goto exit_figlio;
     }
 
@@ -239,7 +187,6 @@ void processo_formattazione(int pipefd[], unsigned long buffsize, unsigned int L
 
     if (pid == -1) {
         printf("Errore nella creazione del processo di scrittura su file\n");
-        exitcode = 1;
         goto exit_figlio;
     } else if (pid == 0) {
         close(pipefd2[1]);
@@ -248,12 +195,6 @@ void processo_formattazione(int pipefd[], unsigned long buffsize, unsigned int L
     } else {
         close(pipefd2[0]);
         format_page_multiprocess(righe, nRighe, colonne, linee, distanza, L, pipefd2, pid);
-        char *str = "MI HAI SBLOCCATO!";
-        write(STDOUT_FILENO, str, strlen(str));
-        signal(SIGUSR1, signalHandler);
-        pause();
-        char *str2 = "Arrivato il segnale 2 di sblocco!";
-        write(STDOUT_FILENO, str2, strlen(str2));
         close(pipefd[1]);
         wait(NULL);
         free_list(righe, sizeof(Riga), nRighe);
@@ -283,22 +224,72 @@ void processo_scrittura(int pipefd[], const char* outfile) {
     }
     int outfilefd = fileno(file);
 
-    /* Attendo che il padre inserisca qualcosa nella PIPE per evitare eventuali stalli*/
-    signal(SIGUSR2, signalHandler);
-    pause();
-
     while ((bytesRead = read(pipefd[0], buffer, BUFFER_SIZE)) > 0) {
         /* Stampa i dati letti dalla pipe sul file di output */
         write(outfilefd, buffer, (int)bytesRead);
     }
-    kill(getppid(), SIGUSR1);
+
+exit_scrittura:
     fclose(file);
     close(pipefd[0]);
 }
 
-void signalHandler(int signal) {
-    if (signal == SIGUSR1) {
-        // Il segnale di conferma è stato ricevuto
-        // Puoi procedere con la chiusura della pipe di scrittura
+/**
+ * Permette di avviare la versione multiprocesso del programma
+ * @param L lunghezza di ogni riga
+ * @param colonne numero di colonne desiderate
+ * @param linee numero di righe per colonna
+ * @param distanza numero di spazi tra due colonne
+ * @param ofile nome del file di output
+ * @param infile nome del file di input
+ * @param openOut se settato a 1 indica che si vuole stampare il file direttamente su Shell
+ */
+int multiprocess(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut) {
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        printf("Errore nella creazione della pipe. Uscita in corso ...\n");
+        return 1;
     }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        printf("Errore nella creazione del processo di formattazione\n");
+        return 1;
+    } else if (pid == 0) {
+        /* è il processo figlio, chiudo l'estremità di scrittura nella pipe del processo figlio */
+        close(pipefd[1]);
+        unsigned long buffsize;
+        read(pipefd[0], &buffsize, sizeof(buffsize));
+        processo_formattazione(pipefd, buffsize, L, colonne, linee, distanza, ofile);
+        exit(EXIT_SUCCESS);
+    } else {
+        /* Siamo nel processo padre, si deve occupare di leggere il contenuto del file in input. */
+        /* Chiudo l'estremità di lettura nella pipe del processo padre. */
+        close(pipefd[0]);
+
+        char *buff = NULL;
+        FILE *input = fopen(infile, "r");
+        buff = read_from_file(input);
+        fclose(input);
+
+        unsigned long buffsize = strlen(buff);
+        write(pipefd[1], &buffsize, sizeof(buffsize));
+        write(pipefd[1], buff, buffsize);
+        close(pipefd[1]);
+
+        wait(NULL);
+
+        free_buff(buff, sizeof(buff));
+        free(buff);
+
+        if (openOut > 0) {
+            FILE *print = fopen(ofile, "r");
+            buff = read_from_file(print);
+            printf("%s", buff);
+            fclose(print);
+        } else {
+            printf("FILE CREATO CORRETTAMENTE!\nVai nella cartella 'output_file' per vedere il risultato\n");
+        }
+    }
+    return 0;
 }

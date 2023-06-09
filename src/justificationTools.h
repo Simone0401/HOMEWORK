@@ -487,8 +487,6 @@ void format_page_multiprocess(Riga **righe, int nRighe, int colonne, int linee, 
             write(pipefd[1], "\n\n", 2);
         }
     }
-    /* Comunico al processo che leggerà dalla PIPE che può iniziare a leggere */
-    kill(childPID, SIGUSR2);
 }
 
 /**
