@@ -6,7 +6,8 @@
 bool validate_parameter(int L, int colonne, int righe, int dist);
 void processo_formattazione(int pipefd[], unsigned long buffsize, unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* outfile);
 void processo_scrittura(int pipefd[], const char* outfile);
-int multiprocess(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut);
+int multiprocesso(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut);
+int monoprocesso(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut);
 
 int main(int argc, char **argv) {
 
@@ -18,9 +19,10 @@ int main(int argc, char **argv) {
     struct arg_int  *nLinee   = arg_int1("l", 	"numRighe", 	"<n>", 		"il numero di righe per colonna, deve essere un numero intero positivo (obbligatorio)");
     struct arg_int  *dist     = arg_int0("d", 	"distanza", 	"<n>", 		"la distanza tra una colonna e l'altra, deve essere un numero intero positivo (default 3)");
     struct arg_lit  *openOut  = arg_lit0("p", 	"printout", 			"visualizza su STDOUT il file prodotto");
+    struct arg_lit  *mulProc  = arg_lit0(NULL, "mP", "consente di avviare la versione multiprocesso del programma (di default viene avviata la versione monoprocesso)");
     struct arg_file *infile   = arg_file1(NULL, NULL, 		NULL, 		"input file (obbligatorio)");
     struct arg_end  *end      = arg_end(20);
-    void* argtable[] = {outfile, help, version, lRiga, nColonne, nLinee, dist, openOut, infile, end};
+    void* argtable[] = {outfile, help, version, lRiga, nColonne, nLinee, dist, openOut, mulProc, infile, end};
     const char* progname = "justify";
     int nerrors;
     int exitcode = 0;
@@ -100,18 +102,22 @@ int main(int argc, char **argv) {
         if (ofile == NULL) {
             goto exit;
         }
-        free_buff(ofile, sizeof(outfile->filename[0]) + 1);
+        free_buff(ofile, strlen(outfile->filename[0]) + 1);
         strcpy(ofile, outfile->filename[0]);
     }
 
-    if(!validate_parameter(L, colonne, linee, distanza)) {
+    if (!validate_parameter(L, colonne, linee, distanza)) {
         printf("%s: sono stati forniti dei valori non ammissibili\n", progname);
         printf("Prova '%s --help' per maggiori informazioni.\n", progname);
         exitcode = 1;
         goto exit;
     }
 
-    exitcode = multiprocess(L, colonne, linee, distanza, ofile, infile->filename[0], openOut->count);
+    if (mulProc->count > 0) {
+        exitcode = multiprocesso(L, colonne, linee, distanza, ofile, infile->filename[0], openOut->count);
+    } else {
+        exitcode = monoprocesso(L, colonne, linee, distanza, ofile, infile->filename[0], openOut->count);
+    }
 
 exit:
     arg_freetable(argtable,sizeof(argtable)/sizeof(argtable[0]));
@@ -244,7 +250,7 @@ exit_scrittura:
  * @param infile nome del file di input
  * @param openOut se settato a 1 indica che si vuole stampare il file direttamente su Shell
  */
-int multiprocess(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut) {
+int multiprocesso(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut) {
     int pipefd[2];
     if (pipe(pipefd) == -1) {
         printf("Errore nella creazione della pipe. Uscita in corso ...\n");
@@ -291,5 +297,48 @@ int multiprocess(unsigned int L, unsigned int colonne, unsigned int linee, unsig
             printf("FILE CREATO CORRETTAMENTE!\nVai nella cartella 'output_file' per vedere il risultato\n");
         }
     }
+    return 0;
+}
+
+/**
+ * Permette di avviare la versione monoprocesso del programma
+ * @param L lunghezza di ogni riga
+ * @param colonne numero di colonne desiderate
+ * @param linee numero di righe per colonna
+ * @param distanza numero di spazi tra due colonne
+ * @param ofile nome del file di output
+ * @param infile nome del file di input
+ * @param openOut se settato a 1 indica che si vuole stampare il file direttamente su Shell
+ */
+int monoprocesso(unsigned int L, unsigned int colonne, unsigned int linee, unsigned int distanza, const char* ofile, const char* infile, int openOut) {
+    char *buff = NULL;
+    Riga* testa_righe = NULL;
+    Riga* coda_righe = NULL;
+    int nRighe = 0, n_parole;
+    Parola** parole = NULL;
+
+    FILE *input = fopen(infile, "r");
+    buff = read_from_file(input);
+    fclose(input);
+
+    n_parole = count_words(buff);
+    parole = (Parola**) malloc(sizeof(Parola)*n_parole);
+
+    build_array(parole, n_parole, buff, L);
+    testa_righe = full_Justyfy(parole, n_parole, L, testa_righe, &coda_righe, &nRighe);
+
+    Riga **righe = build_array_righe(testa_righe, nRighe);
+    format_page(righe, nRighe, colonne, linee, distanza, L, ofile);
+    free_list(righe, sizeof(Riga), nRighe);
+
+    if (openOut > 0) {
+        FILE *print = fopen(ofile, "r");
+        buff = read_from_file(print);
+        printf("%s", buff);
+        fclose(input);
+    } else {
+        printf("FILE CREATO CORRETTAMENTE!\nVai nella cartella 'output_file' per vedere il risultato\n");
+    }
+
     return 0;
 }
