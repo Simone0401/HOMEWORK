@@ -62,7 +62,8 @@ Verrà di seguito descritta brevemente la struttura dei file e delle cartelle de
 - `input_file/`: contiene alcuni testi di esempio con i quali poter provare il funzionamento del programma.
 - `output_file/`: i file di output, di cui non è specificato il percorso come parametro, verranno salvati qui. **NB: se non viene indicato un percorso e un nome per i file di output il programma salverà il file di output come _output.txt_. Questo andrà a sovrascrivere il precedente file già nominato _output.txt_.
 - `License`: è il file rappresentante la Licenza del programma.
-- `README`: questo file. 
+- `README`: questo file.
+- `Makefile`: per compilare velocemente il programma utilizzando il comando **make**. 
 
 ## Contributi
 
