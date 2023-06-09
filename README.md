@@ -46,6 +46,11 @@ Un esempio di esecuzione è mostrato nelle immagini seguenti.
 <img width="314" alt="Screenshot 2023-06-09 alle 23 15 14" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/93ab3793-4dbe-4f28-a9ff-c58126ec79db"> <br>
 
 <img width="419" alt="Screenshot 2023-06-09 alle 23 15 48" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/815bbcfb-2b4a-4a7d-9a5c-70495f471778">
+  
+Nel caso in cui ci fossero parole del testo più lunghe rispetto alla lunghezza massima scelta per ogni riga verrà restituito il seguente errore:
+  
+<img width="419" alt="Screenshot 2023-06-09 alle 23 37 13" src="https://github.com/Simone0401/HOMEWORK/assets/79322230/2efae9d3-b86b-42e7-ac6d-d94bf936ae3b">
+
 
 
 ## Struttura del Progetto
